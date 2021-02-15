@@ -222,7 +222,7 @@ def build_regex(name, email):
 
 def get_rev_list(f, year):
     #print("git rev-list --count HEAD --since=\"Jan 1 %u\" --before \"Dec 31 %d\" %s" % (year, year, f))
-    nb_rev_str = subprocess.Popen("git rev-list --count HEAD --since=\"Jan 1 %u\" --before \"Dec 31 %d\" %s" % (year, year, f), stdout=subprocess.PIPE)
+    nb_rev_str = subprocess.Popen("git rev-list --count HEAD --since=\"Jan 1 %u\" --before \"Dec 31 %d\" \"%s\"" % (year, year, f), stdout=subprocess.PIPE)
     nb_rev = nb_rev_str.stdout.read()
     return nb_rev
 
