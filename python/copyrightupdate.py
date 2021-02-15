@@ -76,27 +76,22 @@ def process_file(f, linecount=default_linelimit):
 
     current_year = datetime.date.today().year
 
-    changed = False
+    changed_years = []
 
-    missing_years = []
-
-    for year in range(2018, current_year + 1):
+    for year in range(2017, current_year + 1):
         nb_rev = int(get_rev_list(f, year))
         if nb_rev > 0:
+            changed_years.append(year)
             #print("[%d] %d rev for '%s'" % (year, nb_rev, f))
-            lines_updated = process_lines(lines, linecount, load_config_regex(), year)
-            if lines_updated:
-                missing_years.append(year)
-                changed = True
-
-    if changed:
+    lines_updated = process_lines(lines, linecount, load_config_regex(), changed_years)
+    if lines_updated:
         with open(f, "w") as new:
             for line in lines:
                 new.write(line)
-        print("Written %s in '%s'" % (missing_years, f))
+        print("Written %s in '%s'" % (changed_years, f))
 
 
-def process_lines(lines, linecount=default_linelimit, config_regex="", year=0):
+def process_lines(lines, linecount=default_linelimit, config_regex="", years=[]):
     """
     Process the given lines up to linecount.
 
@@ -112,29 +107,27 @@ def process_lines(lines, linecount=default_linelimit, config_regex="", year=0):
     if copyright_years_string is None:
         return
 
-    years = parse_years(copyright_years_string)
+    prev_years = parse_years(copyright_years_string)
 
-    if len(years) == 0:
+    if len(prev_years) == 0:
         return
 
     # Add the current year.
     d = datetime.date.today()
-    if year == 0:
+    if len(years) == 0:
         print("entered without year")
-        year = d.year
+        years.append(d.year)
 
     changed = False
 
     # If the current year is not already in the list, append it and update the
     # line accordingly.
-    if not year in years:
-        years.append(year)
-        joined_years = join_years(years)
-        result = re.subn(r"\d[0-9-, ]+\d", joined_years, lines[linenumber], count=1)
-        if result[1] > 0:
-            #print("'%s' -> '%s'" % (lines[linenumber], result[0]))
-            lines[linenumber] = result[0]
-            changed = True
+    joined_years = join_years(years)
+    result = re.subn(r"\d[0-9-, ]+\d", joined_years, lines[linenumber], count=1)
+    if result[1] > 0:
+        #print("'%s' -> '%s'" % (lines[linenumber], result[0]))
+        lines[linenumber] = result[0]
+        changed = True
 
     lines[linenumber] = replace_copyright_symbol(lines[linenumber])
 
