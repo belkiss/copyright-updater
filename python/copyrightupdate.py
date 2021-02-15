@@ -54,6 +54,7 @@ else:
 import datetime
 import os.path
 import re
+import subprocess
 
 __docformat__ = "restructuredtext en"
 
@@ -73,14 +74,29 @@ def process_file(f, linecount=default_linelimit):
     with open(f) as orig:
         lines = orig.readlines()
 
-    process_lines(lines, linecount, load_config_regex())
+    current_year = datetime.date.today().year
 
-    with open(f, "w") as new:
-        for line in lines:
-            new.write(line)
+    changed = False
+
+    missing_years = []
+
+    for year in range(2018, current_year + 1):
+        nb_rev = int(get_rev_list(f, year))
+        if nb_rev > 0:
+            #print("[%d] %d rev for '%s'" % (year, nb_rev, f))
+            lines_updated = process_lines(lines, linecount, load_config_regex(), year)
+            if lines_updated:
+                missing_years.append(year)
+                changed = True
+
+    if changed:
+        with open(f, "w") as new:
+            for line in lines:
+                new.write(line)
+        print("Written %s in '%s'" % (missing_years, f))
 
 
-def process_lines(lines, linecount=default_linelimit, config_regex=""):
+def process_lines(lines, linecount=default_linelimit, config_regex="", year=0):
     """
     Process the given lines up to linecount.
 
@@ -103,15 +119,26 @@ def process_lines(lines, linecount=default_linelimit, config_regex=""):
 
     # Add the current year.
     d = datetime.date.today()
+    if year == 0:
+        print("entered without year")
+        year = d.year
+
+    changed = False
 
     # If the current year is not already in the list, append it and update the
     # line accordingly.
-    if not d.year in years:
-        years.append(d.year)
+    if not year in years:
+        years.append(year)
         joined_years = join_years(years)
-        lines[linenumber] = re.sub(r"\d[0-9-, ]+\d", joined_years, lines[linenumber], count=1)
+        result = re.subn(r"\d[0-9-, ]+\d", joined_years, lines[linenumber], count=1)
+        if result[1] > 0:
+            #print("'%s' -> '%s'" % (lines[linenumber], result[0]))
+            lines[linenumber] = result[0]
+            changed = True
 
     lines[linenumber] = replace_copyright_symbol(lines[linenumber])
+
+    return changed
 
 
 def find_copyright_years_string(lines, linecount=default_linelimit, config_regex=""):
@@ -193,6 +220,11 @@ def build_regex(name, email):
     """
     return name+".*"+email+".*"
 
+def get_rev_list(f, year):
+    #print("git rev-list --count HEAD --since=\"Jan 1 %u\" --before \"Dec 31 %d\" %s" % (year, year, f))
+    nb_rev_str = subprocess.Popen("git rev-list --count HEAD --since=\"Jan 1 %u\" --before \"Dec 31 %d\" %s" % (year, year, f), stdout=subprocess.PIPE)
+    nb_rev = nb_rev_str.stdout.read()
+    return nb_rev
 
 def parse_years(year_string):
     """
